@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+    <div class="section no-pad-bot" id="index-banner">
+        <div class="container">
+            <br><br>
+            <h1 class="header center orange-text">Starter Template</h1>
+            <div class="row center">
+                <h5 class="header col s12 light">A modern responsive front-end framework based on Material Design</h5>
+            </div>
+            <div class="row center">
+                <a href="http://materializecss.com/getting-started.html" id="download-button" class="btn-large waves-effect waves-light orange">Get Started</a>
+            </div>
+            <br><br>
+
+        </div>
+    </div>
+
+    <div class="input-field">
+        <input type="text" id="yt-url">
+        <label for="yt-url">Youtube URL</label>
+        <a class="waves-effect waves-light btn"><i class="material-icons left">search</i>Search</a>
+    </div>
+</div>
+{% endblock %}
+{% block lazy_script %}
+<script type="text/javascript">
+    $(document).ready(function() {
+        $('#yt-url').keypress(function(e) {
+            if ((e.which && e.which == 13) || (e.keyCode && e.keyCode == 13)) {
+                goYoutubeURL($('#yt-url').val());
+                return false;
+            }
+            return true;
+        });
+    });
+</script>
+{% endblock %}

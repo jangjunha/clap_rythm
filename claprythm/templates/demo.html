@@ -1,0 +1,537 @@
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html">
+<head>
+<title>microphone input and Audio Capture Example</title>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/chroma.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/recorder.js') }}"></script>
+<!-- <script type="text/javascript" src="js/webkitAudioContextMonkeyPath.js"></script> -->
+
+<style>
+    body {
+        font-family: Helvetica, sans-serif;
+        font-size: 11pt;
+        margin: 0;
+        padding: 0;
+    }
+    h2 {
+        font-weight: normal;
+        font-size: 24pt;
+        text-align: center;
+    }
+    #controls {
+        text-align: center;
+    }
+    #start_button {
+        font-size: 16pt;
+    }
+    #stop_button {
+        font-size: 16pt;
+    }
+    #playback_button {
+        font-size: 16pt;
+    }
+    #reset_button {
+        font-size: 16pt;
+    }
+
+    #canvas {
+        margin-left: auto;
+        margin-right: auto;
+        display: block;
+        background-color: black ;
+    }
+</style>
+</head>
+
+<body>
+    <p>마이크 권한을 허용해주세요!</p>
+
+    <canvas id="mainCanvas" height="256" style="margin: 0; padding: 0"></canvas><span id="alertbox" style="font-size: 9em;">쨖쨔ㄲ</span>
+    <br>
+
+    <!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
+    <div id="player"></div>
+    <!-- <audio id="audioPlayer" src="piero.mp3" controls></audio> -->
+
+
+
+<p>&nbsp;</p>
+<p>This demo uses the <a href="https://dvcs.w3.org/hg/audio/raw-file/tip/webaudio/specification.html">Web Audio API</a> to capture audio from the
+    microphone, display a frequency spectrogram and capture the audio in a recording for playback.</p>
+<p>Recording is not directly supported in the API, so you need to capture consecutive samples into your own buffer. This can then be
+    used as an input source during playback.</p>
+<p>&nbsp;</p>
+
+<p id="controls" style="display: none">
+    <button id="start_button">Start Recording</button>
+
+    <button id="stop_button">Stop Recording</button>
+
+    <button id="playback_button">Playback</button>
+
+    <button id="reset_button">Reset</button>
+</p>
+<p id="log" style="display: none">hello</p>
+<p id="log_rec" style="display: none">hello</p>
+<canvas id="canvas" width="800" height="256" ></canvas>
+
+<br/>
+<p style="text-align:center"><a href='#' id='disable_audio'>Turn off the microphone</a></p>
+<p>&nbsp;</p>
+
+<p>See the code for more comments - note that the recording buffer is
+    a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays/Float32Array">Float32Array</a> which you need to grow every
+    time you add a new sample</p>
+<p>In order to play the recording you need to create a BufferSource node and copy the recording to it's buffer every time you play the audio</p>
+<p><a href="https://github.com/mattdiamond/Recorderjs">Recorder.js</a> by Matt Diamond is a more packaged approach to recording that allows you to
+    download the recording as a WAV file. This uses web workers to improve performance, which is a great idea, but it makes the code harder to
+    follow if you are getting started with web audio.</p>
+<p>As of July 2013 the demo only works in Google Chrome. The demo must be hosted on a server - it will not work if you open the page as a file.</p>
+<p>To avoid the requests to access the microphone you can use this
+    <a href="https://html5-examples.herokuapp.com/microphone_input_with_spectrogram.html">alternate https link</a></p>
+<p>&nbsp;</p>
+<p>This demo was created by <a href="http://craic.com">Robert Jones of Craic Computing</a>
+    and is freely distributed under the terms of the MIT license.</p>
+<p>This spectrogram in this demo was based on the excellent tutorial
+    <a href="http://www.smartjava.org/content/exploring-html5-web-audio-visualizing-sound">Exploring the HTML5 Web Audio: visualizing sound</a>
+    by Jos Dirksen.</p>
+
+<script type="text/javascript">
+
+    var item = {
+        'name': '',
+        'artist': '',
+        // 'notes': [{"t":1908},{"t":3034},{"t":3283},{"t":4059},{"t":4375},{"t":4670},{"t":4949},{"t":5837},{"t":6436},{"t":6722},{"t":7005},{"t":7588},{"t":8137},{"t":8417},{"t":8696},{"t":9547},{"t":9831},{"t":10118},{"t":10661},{"t":11209},{"t":12048},{"t":12334},{"t":12930},{"t":13251},{"t":13519},{"t":13797},{"t":14076},{"t":14649},{"t":14935},{"t":15214},{"t":15499},{"t":16033},{"t":16318},{"t":17172},{"t":18000},{"t":18588},{"t":18867},{"t":19146},{"t":19708},{"t":20284},{"t":20533},{"t":20841}]
+        // 'notes': [{"t":1330},{"t":1863},{"t":2421},{"t":3008},{"t":3533},{"t":4152},{"t":4708}]
+        'notes': []
+    }
+    var mainCanvas;
+    var mainCtx;
+
+    var record = false
+    var rec_item = {
+        'notes': []
+    }
+
+    window.requestAnimFrame = (function(){
+      return  window.requestAnimationFrame       ||
+              window.webkitRequestAnimationFrame ||
+              window.mozRequestAnimationFrame    ||
+              window.oRequestAnimationFrame      ||
+              window.msRequestAnimationFrame     ||
+              function(callback, element){
+                window.setTimeout(callback, 1000 / 60);
+              };
+    })();
+
+
+    // Global Variables for Audio
+    var audioContext;
+
+    var sourceNode;
+    var analyserNode;
+    var javascriptNode;
+    var playbackSourceNode;
+    var audioStream;
+    var array = [];
+
+    var recording = null;  // this is the cumulative buffer for your recording
+
+    var audioBufferNode = null;
+    var audioBuffer = null;
+
+    // Global Variables for Drawing
+    var x = 0;
+    var canvasWidth  = 800;
+    var canvasHeight = 256;
+    var ctx;
+
+    // Uses the chroma.js library by Gregor Aisch to create a tasteful color gradient
+    // download from https://github.com/gka/chroma.js
+    var hot = new chroma.ColorScale({
+        colors:['#000000', '#ff0000', '#ffff00', '#ffffff'],
+        positions:[0, .25, .75, 1],
+        mode:'rgb',
+        limits:[0, 256]
+    });
+
+
+    window.craicAudioContext = (function(){
+      return  window.AudioContext || window.AudioContext ;
+    })();
+
+    navigator.getMedia = ( navigator.mozGetUserMedia ||
+                           navigator.getUserMedia ||
+                           navigator.webkitGetUserMedia ||
+                           navigator.msGetUserMedia);
+
+
+
+    var start_time, last_time = 0;
+
+    function startGame() {
+        console.log('startGame()');
+        start_time = Date.now()
+        // document.getElementById('audioPlayer').play()
+
+        // execute every time a new sample has been acquired
+        javascriptNode.onaudioprocess = function (e) {
+            addSampleToRecording(e.inputBuffer);
+
+            // Analyze the frequencies in this sample and add to the spectorgram
+            analyserNode.getByteFrequencyData(array);
+            requestAnimFrame(drawSpectrogram);
+        }
+
+        setInterval('process()', 50);
+    }
+
+    $(document).ready(function() {
+
+
+        // get the context from the canvas to draw on
+        ctx = $("#canvas").get()[0].getContext("2d");
+        mainCanvas = document.getElementById('mainCanvas');
+        mainCtx = $("#mainCanvas").get()[0].getContext("2d");
+        clearCanvas();
+
+        // Check that the browser can handle web audio
+        try {
+//            audioContext = new webkitAudioContext();
+            audioContext = new craicAudioContext();
+
+        }
+        catch(e) {
+            alert('Web Audio API is not supported in this browser');
+        }
+
+        // get the input audio stream and set up the nodes
+        try {
+            // calls the function setupAudioNodes
+//            navigator.webkitGetUserMedia({audio:true}, setupAudioNodes, onError);
+            navigator.getMedia({audio:true}, setupAudioNodes, onError);
+
+        } catch (e) {
+            alert('webkitGetUserMedia threw exception :' + e);
+        }
+
+        // Start recording by setting onaudioprocess to the function that manages the recording buffer
+        $("body").on('click', "#start_button",function(e) {
+            e.preventDefault();
+            
+            startGame();
+        });
+
+        // Stop recording by setting onaudioprocess to null
+        $("body").on('click', "#stop_button",function(e) {
+            $('#log_rec').html(JSON.stringify(rec_item.notes))
+
+            player = document.getElementById('audioPlayer')
+            player.pause()
+            player.curruntTime = 0
+
+            alert(score)
+
+            e.preventDefault();
+            javascriptNode.onaudioprocess = null;
+         });
+
+        // Play the recording
+        $("body").on('click', "#playback_button",function(e) {
+            e.preventDefault();
+            playRecording();
+         });
+
+        // Reset the recording buffer and the graphics, but keep the nodes connected
+        $("body").on('click', "#reset_button",function(e) {
+            e.preventDefault();
+            recording = null;
+            clearCanvas();
+         });
+
+        // Disable audio completely
+        $("body").on('click', "#disable_audio",function(e) {
+            e.preventDefault();
+            javascriptNode.onaudioprocess = null;
+            if(audioStream)  audioStream.stop();
+            if(sourceNode)  sourceNode.disconnect();
+         });
+    });
+
+    function onError(e) {
+        console.log(e);
+    }
+
+
+    // Add this buffer to the recording
+    // recording is a global
+    function addSampleToRecording(inputBuffer) {
+        var currentBuffer = inputBuffer.getChannelData(0);
+
+        if (recording ==  null) {
+            // handle the first buffer
+            recording = currentBuffer;
+        } else {
+            // allocate a new Float32Array with the updated length
+            newlen = recording.length + currentBuffer.length;
+            var newBuffer = new Float32Array(newlen);
+            newBuffer.set(recording, 0);
+            newBuffer.set(currentBuffer, recording.length);
+            recording = newBuffer;
+        }
+    }
+
+    function playRecording() {
+        // You need to create the buffer node every time we play the sound
+        // Are we able to cleanup that memory or does the footprint grow over time ??
+        if ( recording != null ) {
+            // create the Buffer from the recording
+            audioBuffer = audioContext.createBuffer( 1, recording.length, audioContext.sampleRate );
+            audioBuffer.getChannelData(0).set(recording, 0);
+
+            // create the Buffer Node with this Buffer
+            audioBufferNode = audioContext.createBufferSource();
+            audioBufferNode.buffer = audioBuffer;
+            console.log('recording buffer length ' + audioBufferNode.buffer.length.toString());
+
+            // connect the node to the destination and play the audio
+            audioBufferNode.connect(audioContext.destination);
+            audioBufferNode.noteOn(0);
+        }
+    }
+
+    function setupAudioNodes(stream) {
+        var sampleSize = 1024;  // number of samples to collect before analyzing FFT
+                                // decreasing this gives a faster sonogram, increasing it slows it down
+        audioStream = stream;
+
+        // The nodes are:  sourceNode -> analyserNode -> javascriptNode -> destination
+
+        // create an audio buffer source node
+        sourceNode = audioContext.createMediaStreamSource(audioStream);
+
+        // Set up the javascript node - this uses only one channel - i.e. a mono microphone
+        //javascriptNode = audioContext.createJavaScriptNode(sampleSize, 1, 1);
+        javascriptNode = audioContext.createScriptProcessor(sampleSize, 1, 1);
+
+        // setup the analyser node
+        analyserNode = audioContext.createAnalyser();
+        analyserNode.smoothingTimeConstant = 0.0;
+        analyserNode.fftSize = 1024; // must be power of two
+
+        // connect the nodes together
+        sourceNode.connect(analyserNode);
+        analyserNode.connect(javascriptNode);
+        javascriptNode.connect(audioContext.destination);
+
+        // optional - connect input to audio output (speaker)
+        // This will echo your input back to your speakers - Beware of Feedback !!
+        // sourceNode.connect(audioContext.destination);
+
+        // allocate the array for Frequency Data
+        array = new Uint8Array(analyserNode.frequencyBinCount);
+    }
+
+    // Draw the Spectrogram from the frequency array
+    // adapted from http://www.smartjava.org/content/exploring-html5-web-audio-visualizing-sound
+    function drawSpectrogram() {        
+        var sum = 0;
+        for (var i = 0; i < array.length; i += 1) {
+            // Get the color for each pixel from a color map
+            var value = array[i];
+            // res = res + "  " + value
+            sum += value
+
+            ctx.beginPath();
+            ctx.strokeStyle = hot.getColor(value).hex();
+
+            // draw a 1 pixel wide rectangle on the canvas
+            var y = canvasHeight - i;
+            ctx.moveTo(x, y);
+            ctx.lineTo(x+1, y);
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        width = mainCanvas.width
+        height = mainCanvas.height
+
+        mainCtx.clearRect(0, 0, width, height);
+
+        tm = Date.now() - start_time
+
+        for (i in item.notes) {
+            if (item.notes[i].t >= tm) {
+                if (item.notes[i].t > tm + 2000) break
+                x = (item.notes[i].t - tm) / 2000 * width // to relative
+
+                mainCtx.beginPath();
+                mainCtx.moveTo(x-1, 0);
+                mainCtx.lineTo(x-1, height);
+                mainCtx.stroke();
+
+                mainCtx.beginPath();
+                mainCtx.moveTo(x, 0);
+                mainCtx.lineTo(x, height);
+                mainCtx.stroke();
+
+                mainCtx.beginPath();
+                mainCtx.moveTo(x+1, 0);
+                mainCtx.lineTo(x+1, height);
+                mainCtx.stroke();
+            }
+        }
+
+        // loop around the canvas when we reach the end
+        x = x + 1;
+        if(x >= canvasWidth) {
+            x = 0;
+            clearCanvas();
+        }
+    }
+
+    var tmp_aaa = 0;
+    var combo = 0, score = 0;
+    function process() {
+        console.log('process()');
+        var sum = 0;
+        for (var i = 0; i < array.length; i += 1) {
+            var value = array[i];
+            sum += value
+        }
+
+        tm = Date.now() - start_time
+
+        // $('#log').html(sum)
+        clap = false
+        if (sum > 60000) {
+            clap = true
+            tmp_aaa = tmp_aaa + 1;
+            console.log('CLAP' + tmp_aaa);
+            if (tm - last_time > 200) {
+                if (record) {
+                    $('#log').html($('#log').html() + "<br>" + tm)
+                    rec_item.notes.push({'t':tm})
+                }
+
+                last_time = tm;
+            }
+        }
+
+        msg = ""
+        for (i in item.notes) {
+            if (item.notes[i].c == undefined || item.notes[i].c == false) {
+                sub = item.notes[i].t - tm
+                // $('#log').html(clap)
+                if (clap && sub >= -500 && sub <= 300) {
+                    combo++
+                    aa = Math.abs(sub)
+                    if (aa < 100) {
+                        score += 100
+                        msg = "Cool!"
+                    } else if (aa < 220) {
+                        score += 70
+                        msg = "Great!"
+                    } else if (aa <= 500) {
+                        score += 50
+                        msg = "Good!"
+                    }
+
+                    if (msg != "") {
+                        item.notes[i].c = true
+                        msg += "  " + combo + " Combo!"
+                        clap = false
+                    }
+                }
+                else if (sub <= -250 || (clap && sub >= 0 && sub <= 500 )) {
+                    item.notes[i].c = true
+                    combo = 0
+
+                    msg = "Miss!"
+                }
+
+            }
+        }
+
+        if (msg != "") {
+            $('#alertbox').html(msg)
+        }
+        $('#log').html(JSON.stringify(item))
+    }
+
+
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        x = 0;
+    }
+
+    $( window ).resize(function() {
+      $('#mainCanvas').attr('width', $(window).width())
+    });
+
+      // 2. This code loads the IFrame Player API code asynchronously.
+      var tag = document.createElement('script');
+
+      tag.src = "https://www.youtube.com/iframe_api";
+      var firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+      // 3. This function creates an <iframe> (and YouTube player)
+      //    after the API code downloads.
+      var player;
+      function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', {
+          height: '480',
+          width: '800',
+          videoId: 'FcssSVa9SOQ',
+          events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+          }
+        });
+      }
+
+      // 4. The API will call this function when the video player is ready.
+      function onPlayerReady(event) {
+        // event.target.playVideo();
+        console.log('onPlayerReady');
+        // Make random Notes!
+        var duration = player.getDuration() * 1000;
+        var i = 3000;
+        while (true) {
+            var r = Math.floor(Math.random() * 1500) + 200;
+            i = i + r;
+            if (i > duration) {
+                break;
+            }
+
+            item.notes.push({"t": i});
+            // console.log(i);
+        }
+      }
+
+      // 5. The API calls this function when the player's state changes.
+      //    The function indicates that when playing a video (state=1),
+      //    the player should play for six seconds and then stop.
+      var done = false;
+      function onPlayerStateChange(event) {
+        console.log('onPlayerStateChange()');
+        if (event.data == YT.PlayerState.PLAYING && !done) {
+            console.log('Play Start!');
+          // setTimeout(stopVideo, 6000);
+          done = true;
+
+          startGame();
+
+
+        }
+      }
+      function stopVideo() {
+        player.stopVideo();
+      }
+</script>
+
+</body>
+</html>
