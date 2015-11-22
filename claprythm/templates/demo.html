@@ -170,6 +170,8 @@
 
 
     var start_time, last_time = 0;
+    var timerId = 0;
+    var playing = false;
 
     function startGame() {
         console.log('startGame()');
@@ -185,7 +187,31 @@
             requestAnimFrame(drawSpectrogram);
         }
 
-        setInterval('process()', 50);
+        playing = true;
+        timerId = setInterval('process()', 50);
+    }
+
+    function stopGame() {
+        playing = false;
+        if (timerId != 0) {
+            clearInterval(timerId);
+        }
+    }
+
+    var lastPauseTime = 0;
+    var pausedTimes = 0;
+    function pauseGame() {
+        playing = false;
+        if (timerId != 0) {
+            clearInterval(timerId);
+            lastPauseTime = Date.now();
+        }
+    }
+
+    function resumeGame() {
+        playing = true;
+        pausedTimes += Date.now() - lastPauseTime;
+        timerId = setInterval('process()', 50);
     }
 
     $(document).ready(function() {
@@ -355,32 +381,34 @@
             ctx.stroke();
         }
 
-        width = mainCanvas.width
-        height = mainCanvas.height
 
-        mainCtx.clearRect(0, 0, width, height);
+        if (playing) {
+            width = mainCanvas.width;
+            height = mainCanvas.height;
 
-        tm = Date.now() - start_time
+            mainCtx.clearRect(0, 0, width, height);
+            tm = Date.now() - start_time - pausedTimes;
 
-        for (i in item.notes) {
-            if (item.notes[i].t >= tm) {
-                if (item.notes[i].t > tm + 2000) break
-                x = (item.notes[i].t - tm) / 2000 * width // to relative
+            for (i in item.notes) {
+                if (item.notes[i].t >= tm) {
+                    if (item.notes[i].t > tm + 2000) break
+                    x = (item.notes[i].t - tm) / 2000 * width // to relative
 
-                mainCtx.beginPath();
-                mainCtx.moveTo(x-1, 0);
-                mainCtx.lineTo(x-1, height);
-                mainCtx.stroke();
+                    mainCtx.beginPath();
+                    mainCtx.moveTo(x-1, 0);
+                    mainCtx.lineTo(x-1, height);
+                    mainCtx.stroke();
 
-                mainCtx.beginPath();
-                mainCtx.moveTo(x, 0);
-                mainCtx.lineTo(x, height);
-                mainCtx.stroke();
+                    mainCtx.beginPath();
+                    mainCtx.moveTo(x, 0);
+                    mainCtx.lineTo(x, height);
+                    mainCtx.stroke();
 
-                mainCtx.beginPath();
-                mainCtx.moveTo(x+1, 0);
-                mainCtx.lineTo(x+1, height);
-                mainCtx.stroke();
+                    mainCtx.beginPath();
+                    mainCtx.moveTo(x+1, 0);
+                    mainCtx.lineTo(x+1, height);
+                    mainCtx.stroke();
+                }
             }
         }
 
@@ -399,18 +427,19 @@
         var sum = 0;
         for (var i = 0; i < array.length; i += 1) {
             var value = array[i];
-            sum += value
+            sum += value;
         }
 
-        tm = Date.now() - start_time
+        tm = Date.now() - start_time - pausedTimes;
 
+        // RECORD CLAP
         // $('#log').html(sum)
         clap = false
         if (sum > 60000) {
-            clap = true
+            clap = true;
             tmp_aaa = tmp_aaa + 1;
             console.log('CLAP' + tmp_aaa);
-            if (tm - last_time > 200) {
+            if (tm - last_time > 100) {
                 if (record) {
                     $('#log').html($('#log').html() + "<br>" + tm)
                     rec_item.notes.push({'t':tm})
@@ -423,29 +452,27 @@
         msg = ""
         for (i in item.notes) {
             if (item.notes[i].c == undefined || item.notes[i].c == false) {
-                sub = item.notes[i].t - tm
+                sub = item.notes[i].t - tm;
+                aa = Math.abs(sub);
                 // $('#log').html(clap)
-                if (clap && sub >= -500 && sub <= 300) {
-                    combo++
-                    aa = Math.abs(sub)
+                if (clap && aa <= 300) {
+                    combo++;
                     if (aa < 100) {
                         score += 100
                         msg = "Cool!"
                     } else if (aa < 220) {
                         score += 70
                         msg = "Great!"
-                    } else if (aa <= 500) {
+                    } else if (aa <= 300) {
                         score += 50
                         msg = "Good!"
                     }
 
-                    if (msg != "") {
-                        item.notes[i].c = true
-                        msg += "  " + combo + " Combo!"
-                        clap = false
-                    }
+                    item.notes[i].c = true;
+                    msg += "  " + combo + " Combo!";
+                    clap = false;
                 }
-                else if (sub <= -250 || (clap && sub >= 0 && sub <= 500 )) {
+                if (sub < -300 /*|| (clap && sub >= 0 && sub <= 500 )*/) {
                     item.notes[i].c = true
                     combo = 0
 
@@ -501,7 +528,7 @@
         var duration = player.getDuration() * 1000;
         var i = 3000;
         while (true) {
-            var r = Math.floor(Math.random() * 1500) + 200;
+            var r = Math.floor(Math.random() * 1500) + 300;
             i = i + r;
             if (i > duration) {
                 break;
@@ -518,14 +545,24 @@
       var done = false;
       function onPlayerStateChange(event) {
         console.log('onPlayerStateChange()');
-        if (event.data == YT.PlayerState.PLAYING && !done) {
-            console.log('Play Start!');
-          // setTimeout(stopVideo, 6000);
-          done = true;
+        if (event.data == YT.PlayerState.PLAYING) {
+            if (!done) {
+                // 시작
+                console.log('Play Start!');
+                // setTimeout(stopVideo, 6000);
+                done = true;
+                startGame();
+            } else if (!playing) {
+                resumeGame();
+            }
+        }
 
-          startGame();
+        if (event.data == YT.PlayerState.PAUSED || event.data == YT.PlayerState.BUFFERING) {
+            pauseGame();
+        }
 
-
+        if (event.data == YT.PlayerState.ENDED) {
+            stopGame();
         }
       }
       function stopVideo() {

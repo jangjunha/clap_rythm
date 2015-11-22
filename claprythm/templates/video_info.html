@@ -1,51 +1,75 @@
 {% extends 'base.html' %}
 {% block content %}
-<div style="display: table; width: 100%;">
-    <div style="display: table-cell; width: 50%">1</div>
-    <div style="display: table-cell; width: 50%">2</div>
+
+<div class="row">
+  <div class="col s12 m12 l6"><div id="player"></div></div>
+  <div class="col s12 m12 l6">
+    <a href="{{ url_for('main.video_play_random', video_id=video_id) }}" class="waves-effect waves-light btn"><i class="material-icons left">cloud</i>Play with random Note</a>
+    <a href="{{ url_for('main.video_create_note_form', video_id=video_id) }}" class="waves-effect waves-light btn"><i class="material-icons left">cloud</i>Create Note</a>
+    {% if notes %}
+    <div class="collection">
+    {% for note in notes %}
+      <a href="{{ url_for('main.play', note_id=note.key().id_or_name()) }}" class="collection-item">{{ note.title }}</a>
+    {% endfor %}
+    </div>
+    {% else %}
+    <p>No notes!</p>
+    {% endif %}
+  </div>
 </div>
+
+<!-- <a class="btn-floating btn-large waves-effect waves-light red"><i class="material-icons">add</i></a> -->
+
+
 {% endblock %}
 {% block lazy_script %}
 <script>
-      // // 2. This code loads the IFrame Player API code asynchronously.
-      // var tag = document.createElement('script');
+  // 2. This code loads the IFrame Player API code asynchronously.
+  var tag = document.createElement('script');
 
-      // tag.src = "https://www.youtube.com/iframe_api";
-      // var firstScriptTag = document.getElementsByTagName('script')[0];
-      // firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+  tag.src = "https://www.youtube.com/iframe_api";
+  var firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-      // // 3. This function creates an <iframe> (and YouTube player)
-      // //    after the API code downloads.
-      // var player;
-      // function onYouTubeIframeAPIReady() {
-      //   player = new YT.Player('player', {
-      //     // height: '390',
-      //     // width: '640',
-      //     videoId: 'M7lc1UVf-VE',
-      //     events: {
-      //       'onReady': onPlayerReady,
-      //       'onStateChange': onPlayerStateChange
-      //     }
-      //   });
-      // }
+  // 3. This function creates an <iframe> (and YouTube player)
+  //    after the API code downloads.
+  var player;
+  function onYouTubeIframeAPIReady() {
+    player = new YT.Player('player', {
+      // height: '390',
+      width: '100%',
+      videoId: '{{ video_id }}',
+      events: {
+        'onReady': onPlayerReady,
+        'onStateChange': onPlayerStateChange
+      }
+    });
+  }
 
-      // // 4. The API will call this function when the video player is ready.
-      // function onPlayerReady(event) {
-      //   event.target.playVideo();
-      // }
+  // 4. The API will call this function when the video player is ready.
+  function onPlayerReady(event) {
+      // event.target.playVideo();
+    }
 
-      // // 5. The API calls this function when the player's state changes.
-      // //    The function indicates that when playing a video (state=1),
-      // //    the player should play for six seconds and then stop.
-      // var done = false;
-      // function onPlayerStateChange(event) {
-      //   if (event.data == YT.PlayerState.PLAYING && !done) {
-      //     setTimeout(stopVideo, 6000);
-      //     done = true;
-      //   }
+  // 5. The API calls this function when the player's state changes.
+  //    The function indicates that when playing a video (state=1),
+  //    the player should play for six seconds and then stop.
+  var done = false;
+  function onPlayerStateChange(event) {
+      // if (event.data == YT.PlayerState.PLAYING && !done) {
+      //   setTimeout(stopVideo, 6000);
+      //   done = true;
       // }
-      // function stopVideo() {
-      //   player.stopVideo();
-      // }
-</script>
-{% endblock %}
+      if (event.data == -1) {
+        var loaded_video_id = player.getVideoData().video_id;
+        if (loaded_video_id != "{{ video_id }}") {
+          location.href = "/yt/" + loaded_video_id;
+        }
+      }
+
+      if (event.data == YT.PlayerState.ENDED) {
+        player.clearVideo();
+      }
+    }
+    </script>
+        {% endblock %}

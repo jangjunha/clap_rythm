@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
 # Flask Options
-DEBUG = True
+DEBUG = False
 SECRET_KEY = 'development-key'
-

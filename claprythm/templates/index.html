@@ -3,23 +3,39 @@
 <div class="container">
     <div class="section no-pad-bot" id="index-banner">
         <div class="container">
-            <br><br>
-            <h1 class="header center orange-text">Starter Template</h1>
+            <h1 class="header center orange-text" style="margin-top: 0">쨖쨔ㄲ</h1>
             <div class="row center">
-                <h5 class="header col s12 light">A modern responsive front-end framework based on Material Design</h5>
+                <h5 class="header col s12 light">모두 함께 '쨖쨔ㄲ' 박수를 쳐보아요!</h5>
             </div>
-            <div class="row center">
-                <a href="http://materializecss.com/getting-started.html" id="download-button" class="btn-large waves-effect waves-light orange">Get Started</a>
-            </div>
-            <br><br>
-
         </div>
     </div>
 
     <div class="input-field">
-        <input type="text" id="yt-url">
+        <i class="material-icons prefix">video_library</i>
+        <input id="yt-url" type="text" required>
         <label for="yt-url">Youtube URL</label>
-        <a class="waves-effect waves-light btn"><i class="material-icons left">search</i>Search</a>
+    </div>
+    <br>
+    
+    <h5>Recent Notes</h5>
+    <div class="row center">
+        {% for note in notes %}
+        <div class="col s6 m4">
+            <div class="card">
+                <div class="card-image">
+                    <img src="http://img.youtube.com/vi/{{ note.video_id }}/mqdefault.jpg">
+                    <span class="card-title">Card Title</span>
+                </div>
+                <div class="card-content">
+                    <h6>{{ note.title }}</h6>
+                    <p>by {{ note.writer_name }}</p>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('main.play', note_id=note.key().id_or_name()) }}">Play</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}
