@@ -198,53 +198,75 @@
     array = new Uint8Array(analyserNode.frequencyBinCount);
   }
 
+  var cool_range = 100,
+      great_range = 220,
+      good_range = 300;
+  var clap = false;
+  var lastClapTime;
+
   // Draw the Spectrogram from the frequency array
   // adapted from http://www.smartjava.org/content/exploring-html5-web-audio-visualizing-sound
   function draw() {
+    width = mainCanvas.width;
+    height = mainCanvas.height;
+
+    mainCtx.clearRect(0, 0, width, height);
+    tm = Date.now() - start_time - pausedTimes;
+    clapDelta = Date.now() - lastClapTime;
+
+    // 이전 0.5초와 이후 2.5초를 보여줌
+    var scale = width / 3000;
+    var adjust = 500 * scale;
+
+    // 범위를 그린다
+    mainCtx.beginPath();
+    mainCtx.fillStyle = "#EF9A9A"
+    mainCtx.rect(- good_range * scale + adjust, 0, good_range * 2 * scale, height);
+    mainCtx.fill();
+
+    mainCtx.beginPath();
+    mainCtx.fillStyle = "#EF5350"
+    mainCtx.rect(- great_range * scale + adjust, 0, great_range * 2 * scale, height);
+    mainCtx.fill();
+
+    mainCtx.beginPath();
+    mainCtx.fillStyle = "#E53935"
+    mainCtx.rect(- cool_range * scale + adjust, 0, cool_range * 2 * scale, height);
+    mainCtx.fill();
+
+    if(clapDelta < 1000 && clapDelta > 0)
+    {
+      mainCtx.beginPath();
+      mainCtx.fillStyle = "#2196F3"
+      if(clapDelta < 500)
+        mainCtx.globalAlpha = 0.5;
+      else
+        mainCtx.globalAlpha = 0.5 - (clapDelta - 500) / 1000;
+      mainCtx.rect(0, 0, adjust + good_range * scale, height);
+      mainCtx.fill();
+      mainCtx.globalAlpha = 1;
+    }
+
     if (playing) {
-      width = mainCanvas.width;
-      height = mainCanvas.height;
 
-      mainCtx.clearRect(0, 0, width, height);
-      tm = Date.now() - start_time - pausedTimes;
-
+      mainCtx.fillStyle="#000000"
       for (i in item.notes) {
+        var t = item.notes[i].t;
+        if(t > tm + 2500) break;
+        if(t < tm - 500) continue;
+
         // if (rec_item.notes[i] > tm + 2000) break;
         // x = (tm - rec_item.notes[i]) / 10;
-        x = (tm - item.notes[i].t) / 2000 * width + width; // to relative
-        x = width - x;
-        if (i == 0) {
-          // console.log('tm: ' + tm + '/  t: ' + item.notes[i].t + '  / width: ' + width);
-          // console.log(x)
-        }
+        x = (tm - item.notes[i].t) * scale + width; // to relative
+        x = width - x + adjust;
 
         mainCtx.beginPath();
-        mainCtx.moveTo(x-2, 0);
-        mainCtx.lineTo(x-2, height);
-        mainCtx.stroke();
-
-        mainCtx.beginPath();
-        mainCtx.moveTo(x-1, 0);
-        mainCtx.lineTo(x-1, height);
-        mainCtx.stroke();
-
-        mainCtx.beginPath();
-        mainCtx.moveTo(x, 0);
-        mainCtx.lineTo(x, height);
-        mainCtx.stroke();
-
-        mainCtx.beginPath();
-        mainCtx.moveTo(x+1, 0);
-        mainCtx.lineTo(x+1, height);
-        mainCtx.stroke();
-
-        mainCtx.beginPath();
-        mainCtx.moveTo(x+2, 0);
-        mainCtx.lineTo(x+2, height);
-        mainCtx.stroke();
+        mainCtx.rect(x - 2, 0, 4, height);
+        mainCtx.fill();
       }
     }
   }
+  // 일단 첫 화면을 그린다!
 
   var clap_cnt = 0;
   var combo = 0, score = 0;
@@ -261,9 +283,10 @@
 
     // $('#log').html(sum)
     clap = false;
-    if (sum > 50000 && last_sum < sum) {
+    if (sum > 50000)
+    {
       clap = true;
-
+      lastClapTime = Date.now();
       clap_cnt = clap_cnt + 1;
       console.log('CLAP' + clap_cnt);
     }
@@ -277,13 +300,13 @@
             // $('#log').html(clap)
             if (clap && aa <= 300) {
                 combo++;
-                if (aa < 100) {
+                if (aa < cool_range) {
                     score += 100
                     msg = "Cool!"
-                } else if (aa < 220) {
+                } else if (aa < great_range) {
                     score += 70
                     msg = "Great!"
-                } else if (aa <= 300) {
+                } else if (aa <= good_range) {
                     score += 50
                     msg = "Good!"
                 }
