@@ -214,9 +214,14 @@
         x = (tm - item.notes[i].t) / 2000 * width + width; // to relative
         x = width - x;
         if (i == 0) {
-          console.log('tm: ' + tm + '/  t: ' + item.notes[i].t + '  / width: ' + width);
-          console.log(x)
+          // console.log('tm: ' + tm + '/  t: ' + item.notes[i].t + '  / width: ' + width);
+          // console.log(x)
         }
+
+        mainCtx.beginPath();
+        mainCtx.moveTo(x-2, 0);
+        mainCtx.lineTo(x-2, height);
+        mainCtx.stroke();
 
         mainCtx.beginPath();
         mainCtx.moveTo(x-1, 0);
@@ -231,6 +236,11 @@
         mainCtx.beginPath();
         mainCtx.moveTo(x+1, 0);
         mainCtx.lineTo(x+1, height);
+        mainCtx.stroke();
+
+        mainCtx.beginPath();
+        mainCtx.moveTo(x+2, 0);
+        mainCtx.lineTo(x+2, height);
         mainCtx.stroke();
       }
     }
