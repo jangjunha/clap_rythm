@@ -5,7 +5,7 @@ from claprythm.models.user import User
 
 class Note(db.Model):
     video_id = db.StringProperty()
-    notes = db.StringProperty()
+    notes = db.TextProperty()
     title = db.StringProperty()
 
     writer = db.ReferenceProperty(User)
