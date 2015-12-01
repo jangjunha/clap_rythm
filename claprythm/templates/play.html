@@ -10,6 +10,7 @@
     <h6>by {{ note.writer_name }}</h6>
     <hr>
     <p id="msg" style="font-size: 4.5em; margin: 0" class="center-align">Click Video = Start</p>
+    <p id="score" style="font-size: 2.5em; margin:0" class="center-align">Score: 0</p>
   </div>
 </div>
 
@@ -44,6 +45,14 @@
               window.setTimeout(callback, 1000 / 60);
             };
   })();
+
+  var isSpacebarPressed = false;
+  window.addEventListener("keydown", function(e){
+    if(e.keyCode == 32) isSpacebarPressed = true;
+  });
+  window.addEventListener("keyup", function(e){
+    if(e.keyCode == 32) isSpacebarPressed = false;
+  });
 
 
   // Global Variables for Audio
@@ -81,6 +90,12 @@
     console.log('startGame()');
     start_time = Date.now()
 
+    if(javascriptNode.onaudioprocess) {
+      // ...
+    }
+    else {
+      /// alert("audio input has not been connected");
+    }
     // execute every time a new sample has been acquired
     javascriptNode.onaudioprocess = function (e) {
       addSampleToRecording(e.inputBuffer);
@@ -116,6 +131,11 @@
     playing = true;
     pausedTimes += Date.now() - lastPauseTime;
     timerId = setInterval('process()', 50);
+  }
+
+  function updateScore(newScore)
+  {
+    $("#score").text("Score: " + score);
   }
 
   $(document).ready(function() {
@@ -274,16 +294,18 @@
   function process() {
     // console.log('process()');
     var sum = 0;
-    for (var i = 0; i < array.length; i += 1) {
-      var value = array[i];
-      sum += value;
+    if(array){
+      for (var i = 0; i < array.length; i += 1) {
+        var value = array[i];
+        sum += value;
+      }
     }
 
     tm = Date.now() - start_time - pausedTimes;
 
     // $('#log').html(sum)
     clap = false;
-    if (sum > 50000)
+    if (sum > 50000 || isSpacebarPressed)
     {
       clap = true;
       lastClapTime = Date.now();
@@ -325,6 +347,8 @@
         }
     }
 
+
+    updateScore(score);
     if (msg != "") {
         $('#msg').html(msg)
     }
