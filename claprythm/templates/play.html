@@ -9,7 +9,7 @@
     <h5>{{ note.title }}</h5>
     <h6>by {{ note.writer_name }}</h6>
     <hr>
-    <p id="msg" style="font-size: 4.5em; margin: 0" class="center-align">Click Video = Start</p>
+    <p id="msg" style="font-size: 4.5em; margin: 0" class="center-align">Play Video to Start</p>
     <p id="score" style="font-size: 2.5em; margin:0" class="center-align">Score: 0</p>
   </div>
 </div>
@@ -107,6 +107,7 @@
 
     playing = true;
     timerId = setInterval('process()', 50);
+    $("#msg").html("Let's GO!");
   }
 
   function stopGame() {
@@ -144,6 +145,8 @@
     mainCanvas = document.getElementById('mainCanvas');
     mainCtx = $("#mainCanvas").get()[0].getContext("2d");
     clearCanvas();
+    // 일단 첫 화면을 그린다!
+    draw();
 
     // Check that the browser can handle web audio
     try {
@@ -222,7 +225,7 @@
       GREAT_RANGE = 220,
       GOOD_RANGE = 300;
   var clap = false;
-  var lastClapTime;
+  var lastClapTime, lastDrawTime = Date.now();
 
   // Draw the Spectrogram from the frequency array
   // adapted from http://www.smartjava.org/content/exploring-html5-web-audio-visualizing-sound
@@ -231,8 +234,18 @@
     height = mainCanvas.height;
 
     mainCtx.clearRect(0, 0, width, height);
-    tm = Date.now() - start_time - pausedTimes;
-    clapDelta = Date.now() - lastClapTime;
+
+    if(playing)
+    {
+      tm = Date.now() - start_time - pausedTimes;
+      lastDrawTime = Date.now();
+      clapDelta = Date.now() - lastClapTime;
+    }
+    else
+    {
+      tm = lastDrawTime - start_time - pausedTimes;
+      clapDelta = lastDrawTime - lastClapTime;
+    }
 
     // 이전 0.5초와 이후 2.5초를 보여줌
     var scale = width / 3000;
@@ -267,27 +280,25 @@
       mainCtx.globalAlpha = 1;
     }
 
-    if (playing) {
+    mainCtx.fillStyle="#000000"
+    for (i in item.notes) {
+      var t = item.notes[i].t;
+      if(item.notes[i].c) continue;
+      if(t > tm + 2500) break;
+      if(t < tm - 500) continue;
 
-      mainCtx.fillStyle="#000000"
-      for (i in item.notes) {
-        var t = item.notes[i].t;
-        if(t > tm + 2500) break;
-        if(t < tm - 500) continue;
+      // if (rec_item.notes[i] > tm + 2000) break;
+      // x = (tm - rec_item.notes[i]) / 10;
+      x = (tm - item.notes[i].t) * scale + width; // to relative
+      x = width - x + adjust;
 
-        // if (rec_item.notes[i] > tm + 2000) break;
-        // x = (tm - rec_item.notes[i]) / 10;
-        x = (tm - item.notes[i].t) * scale + width; // to relative
-        x = width - x + adjust;
-
-        mainCtx.beginPath();
-        mainCtx.rect(x - 2, 0, 4, height);
-        mainCtx.fill();
-      }
+      mainCtx.beginPath();
+      mainCtx.rect(x - 2, 0, 4, height);
+      mainCtx.fill();
     }
   }
-  // 일단 첫 화면을 그린다!
 
+  var coolCount = 0, goodCount = 0, greatCount = 0;
   var clap_cnt = 0;
   var combo = 0, score = 0;
   var last_sum = 0;
@@ -305,7 +316,7 @@
 
     // $('#log').html(sum)
     clap = false;
-    if (sum > 50000 || isSpacebarPressed)
+    if (sum > 50000)
     {
       clap = true;
       lastClapTime = Date.now();
@@ -315,6 +326,11 @@
     last_sum = sum;
 
     msg = "";
+    var weight = 1;
+    if(combo > 10) weight = 1.2;
+    else if(combo > 50) weight = 1.5;
+    else if(combo > 100) weight = 2;
+
     for (i in item.notes) {
         if (item.notes[i].c == undefined || item.notes[i].c == false) {
             sub = item.notes[i].t - tm;
@@ -323,21 +339,24 @@
             if (clap && aa <= 300) {
                 combo++;
                 if (aa < COOL_RANGE) {
-                    score += 100
+                    score += 100 * weight;
                     msg = "Cool!"
+                    coolCount++;
                 } else if (aa < GREAT_RANGE) {
-                    score += 70
+                    score += 70 * weight;
                     msg = "Great!"
+                    greatCount++;
                 } else if (aa <= GOOD_RANGE) {
-                    score += 50
+                    score += 50 * weight;
                     msg = "Good!"
+                    goodCount++;
                 }
 
                 item.notes[i].c = true;
-                msg += "  " + combo + " Combo!";
+                msg += "  " + Number(combo) + " Combo!";
                 clap = false;
             }
-            if (sub < -300 /*|| (clap && sub >= 0 && sub <= 500 )*/) {
+            if (sub < -500 /*|| (clap && sub >= 0 && sub <= 500 )*/) {
                 item.notes[i].c = true
                 combo = 0
 
