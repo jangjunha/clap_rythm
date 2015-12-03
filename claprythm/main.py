@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, render_template, request, redirect, flash, url_for
+from flask import Blueprint, render_template, request, redirect, flash, \
+    url_for, abort
 from claprythm.models.note import Note
 import json
 
@@ -51,7 +52,32 @@ def video_create_note(video_id):
     return redirect(url_for('main.video_info', video_id=video_id))
 
 
-@blue_main.route('/yt/<string:video_id>/random')
+@blue_main.route('/yt/<string:video_id>/note/random')
+def video_note_random(video_id):
+    note = {'video_id': video_id,
+            'title': 'Random',
+            'writer_name': 'Your Computer'}
+
+    return render_template('note_info.html',
+                           note=note,
+                           random=True,
+                           args=request.args)
+
+
+@blue_main.route('/yt/<string:video_id>/note/<int:note_id>')
+def video_note(video_id, note_id):
+    note = Note.get_by_id(note_id)
+
+    if note.video_id != video_id:
+        return abort(400)
+
+    return render_template('note_info.html',
+                           note=note,
+                           random=False,
+                           args=request.args)
+
+
+@blue_main.route('/yt/<string:video_id>/play/random')
 def video_play_random(video_id):
     note = {'video_id': video_id,
             'title': 'Random',
@@ -62,9 +88,12 @@ def video_play_random(video_id):
                            random=True)
 
 
-@blue_main.route('/play/<int:note_id>')
-def play(note_id):
+@blue_main.route('/yt/<string:video_id>/play/<int:note_id>')
+def video_play(video_id, note_id):
     note = Note.get_by_id(note_id)
+
+    if note.video_id != video_id:
+        return abort(400)
 
     notes_o = []
     for t in json.loads(note.notes):
@@ -75,8 +104,9 @@ def play(note_id):
                            random=False,
                            notes_str=json.dumps(notes_o))
 
-
 # Redirect
+
+
 @blue_main.route('/watch')
 def yt_watch():
     video_id = request.args.get('v', '')

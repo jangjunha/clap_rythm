@@ -4,12 +4,12 @@
 <div class="row">
   <div class="col s12 m12 l6"><div id="player"></div></div>
   <div class="col s12 m12 l6">
-    <a href="{{ url_for('main.video_play_random', video_id=video_id) }}" class="waves-effect waves-light btn"><i class="material-icons left">cloud</i>Play with random Note</a>
+    <a href="{{ url_for('main.video_note_random', video_id=video_id) }}" class="waves-effect waves-light btn"><i class="material-icons left">cloud</i>Play with random Note</a>
     <a href="{{ url_for('main.video_create_note_form', video_id=video_id) }}" class="waves-effect waves-light btn"><i class="material-icons left">cloud</i>Create Note</a>
     {% if notes %}
     <div class="collection">
     {% for note in notes %}
-      <a href="{{ url_for('main.play', note_id=note.key().id_or_name()) }}" class="collection-item">{{ note.title }}</a>
+      <a href="{{ url_for('main.video_note', video_id=note.video_id, note_id=note.key().id_or_name()) }}" class="collection-item">{{ note.title }}</a>
     {% endfor %}
     </div>
     {% else %}

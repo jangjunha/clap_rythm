@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block meta_og %}
+    <meta property="og:url"           content="{{ request.url }}" />
+    <meta property="og:type"          content="website" />
+    {% if 'score' in request.args %}
+    <meta property="og:title"         content="[{{ note.title }}] {{ request.args.get('score', '0') }}점! - 쨖쨔ㄲ" />
+    {% else %}
+    <meta property="og:title"         content="[{{ note.title }}] - 쨖쨔ㄲ" />
+    {% endif %}
+    <meta property="og:description"   content="다같이 쨖쨔ㄲ 박수를 쳐보아요! - {{ note.title }} by {{ note.writer_name }}" />
+{% endblock %}
+
+{% block content %}
+{% if random %}
+<a href="{{ url_for('main.video_play_random', video_id=note.video_id) }}" class="btn waves-effect waves-light">Play</a>
+{% else %}
+<a href="{{ url_for('main.video_play', video_id=note.video_id, note_id=note.key().id_or_name()) }}" class="btn waves-effect waves-light">Play</a>
+{% endif %}
+
+{% endblock %}

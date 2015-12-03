@@ -1,4 +1,12 @@
 {% extends 'base.html' %}
+
+{% block meta_og %}
+    <meta property="og:url"           content="{{ request.url }}" />
+    <meta property="og:type"          content="website" />
+    <meta property="og:title"         content="{{ note.title }} - 쨖쨔ㄲ" />
+    <meta property="og:description"   content="다같이 쨖쨔ㄲ 박수를 쳐보아요! - {{ note.title }} by {{ note.writer_name }}" />
+{% endblock %}
+
 {% block content %}
 
 <div class="row">
@@ -8,6 +16,7 @@
   <div class="col s12 m12 l6">
     <h5>{{ note.title }}</h5>
     <h6>by {{ note.writer_name }}</h6>
+    <div class="fb-like" data-href="{{ request.url }}" data-layout="standard" data-action="like" data-show-faces="true" data-share="true"></div>
     <hr>
     <p id="msg" style="font-size: 4.5em; margin: 0" class="center-align">Click Video = Start</p>
   </div>
@@ -18,11 +27,52 @@
 <!-- <a class="btn-floating btn-large waves-effect waves-light red"><i class="material-icons">add</i></a> -->
 
 
+
+
+<!-- Modal Trigger -->
+<a class="waves-effect waves-light btn modal-trigger" href="#modal-result">Modal</a>
+
+<!-- Modal Structure -->
+<div id="modal-result" class="modal">
+  <div class="modal-content">
+    <h4>Result</h4>
+    <h5>Score: 1234</h5>
+    <p>Cool: 12</p>
+    <p>Great: 34</p>
+    <p>Good: 56</p>
+    <p>Miss: 78</p>
+    <p>Max Combo: 910</p>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class=" modal-action waves-effect waves-green btn-flat"><i class="material-icons">replay</i> Re</a>
+    <a href="#!" class=" modal-action waves-effect waves-green btn-flat"><i class="material-icons">input</i> Share on Facebook</a>
+    <a href="{{ url_for('main.video_info', video_id=note.video_id) }}" class=" modal-action waves-effect waves-green btn-flat"><i class="material-icons">view_list</i> back to list</a>
+  </div>
+</div>
+
 {% endblock %}
+
+{% block body_start %}
+    <div id="fb-root"></div>
+    <script>(function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "//connect.facebook.net/ko_KR/sdk.js#xfbml=1&version=v2.5&appId=1655480774709101";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));</script>
+{% endblock %}
+
 {% block lazy_script %}
-<script type="text/javascript" src="{{ url_for('static', filename='js/chroma.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='js/recorder.js') }}"></script>
 <script>
+
+  $(document).ready(function(){
+    // the "href" attribute of .modal-trigger must specify the modal ID that wants to be triggered
+    $('.modal-trigger').leanModal();
+  });
+        
+
   var mainCanvas;
   var mainCtx;
 
