@@ -19,7 +19,9 @@
     <div class="fb-like" data-href="{{ request.url }}" data-layout="standard" data-action="like" data-show-faces="true" data-share="true"></div>
     <hr>
     <p id="msg" style="font-size: 4.5em; margin: 0" class="center-align">Play Video to Start</p>
-    <p id="score" style="font-size: 2.5em; margin:0" class="center-align">Score: 0</p>
+    <div style="height: 4em">
+      <p id="score" style="color:black; font-size: 2.5em; margin:0; padding: 0" class="center-align">0</p>
+    </div>
   </div>
 </div>
 
@@ -203,9 +205,26 @@
     timerId = setInterval('process()', 50);
   }
 
+  var scoreObj = $("#score");
+  var isScoreAnimFinish = true;
   function updateScore(newScore)
   {
-    $("#score").text("Score: " + score);
+    scoreObj.text("" + score);
+    //if(isScoreAnimFinish)
+    {
+      isScoreAnimFinish = false;
+      scoreObj.stop().animate({
+        "font-size": "3.5em",
+        color: "#f00"
+      }, 70, function(){
+        scoreObj.stop().animate({
+          "font-size": "2.5em",
+          color: "#000"
+        }, 400, function(){
+          isScoreAnimFinish = true;
+        });
+      });
+    }
   }
 
   $(document).ready(function() {
@@ -293,7 +312,7 @@
   var COOL_RANGE = 70,
       GREAT_RANGE = 140,
       GOOD_RANGE = 200;
-  var CLAP_RANGE = 30000;
+  var CLAP_RANGE = 60000;
   var clap = false;
   var lastClapTime, lastDrawTime = Date.now();
 
@@ -402,6 +421,7 @@
     else if(combo > 50) weight = 1.5;
     else if(combo > 100) weight = 2;
 
+    var oldScore = score;
     for (i in item.notes) {
         if (item.notes[i].c == undefined || item.notes[i].c == false) {
             sub = item.notes[i].t - tm;
@@ -441,9 +461,8 @@
 
         }
     }
-
-
-    updateScore(score);
+    if(score > oldScore)
+      updateScore(score);
     if (msg != "") {
         $('#msg').html(msg)
     }
