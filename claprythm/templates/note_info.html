@@ -3,10 +3,11 @@
 {% block meta_og %}
     <meta property="og:url"           content="{{ request.url }}" />
     <meta property="og:type"          content="website" />
+    <meta property="og:image"         content="http://img.youtube.com/vi/{{ note.video_id }}/mqdefault.jpg" />
     {% if 'score' in request.args %}
-    <meta property="og:title"         content="[{{ note.title }}] {{ request.args.get('score', '0') }}점! - 쨖쨔ㄲ" />
+    <meta property="og:title"         content="[{{ note.video_title }}] {{ request.args.get('score', '0') }}점! - 쨖쨔ㄲ" />
     {% else %}
-    <meta property="og:title"         content="[{{ note.title }}] - 쨖쨔ㄲ" />
+    <meta property="og:title"         content="[{{ note.video_title }}] - 쨖쨔ㄲ" />
     {% endif %}
     <meta property="og:description"   content="다같이 쨖쨔ㄲ 박수를 쳐보아요! - {{ note.title }} by {{ note.writer_name }}" />
 {% endblock %}
