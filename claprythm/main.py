@@ -40,6 +40,7 @@ def video_create_note(video_id):
     title = request.form.get('title', 'Noname')
     nickname = request.form.get('nickname', 'Anonymous')
     notes = request.form.get('notes', '')
+    video_title = request.form.get('video_title', 'UNTITLED')
 
     if notes == '' or notes == '[]':
         flash('Note is empty!')
@@ -47,6 +48,7 @@ def video_create_note(video_id):
                                 video_id=video_id))
 
     note = Note(video_id=video_id,
+                video_title=video_title,
                 title=title,
                 writer_name=nickname,
                 ip=request.remote_addr,

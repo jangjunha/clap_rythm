@@ -22,6 +22,8 @@
         <label for="nickname">Nickame</label>
       </div>
 
+      <input type="hidden" name="video_title" id="video_title" value="">
+
       <!-- <a href="#" class="waves-effect waves-light btn"><i class="material-icons left">cloud</i>Re</a> -->
       <a href="#" id="btn-submit" class="waves-effect waves-light btn"><i class="material-icons left">cloud</i>Submit</a>
     </form>
@@ -338,7 +340,8 @@
       playerVars: {
         'controls': 0,
         'disablekb': 1,
-        'iv_load_policy': 3
+        'iv_load_policy': 3,
+        'rel': 0
       },
       events: {
         'onReady': onPlayerReady,
@@ -351,6 +354,7 @@
   function onPlayerReady(event) {
     // event.target.playVideo();
     console.log('onPlayerReady');
+    $('#video_title').val(player.getVideoData().title);
   }
 
   // 5. The API calls this function when the player's state changes.
