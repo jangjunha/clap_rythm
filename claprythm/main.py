@@ -19,6 +19,11 @@ def test():
     return render_template('test.html')
 
 
+@blue_main.route('/close_popup')
+def close_popup():
+    return render_template('close_popup.html')
+
+
 @blue_main.route('/yt/<string:video_id>')
 def video_info(video_id):
     notes = [note for note in Note.all().filter('video_id =', video_id)]

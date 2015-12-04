@@ -31,7 +31,7 @@
                     <p>by {{ note.writer_name }}</p>
                 </div>
                 <div class="card-action">
-                    <a href="{{ url_for('main.play', note_id=note.key().id_or_name()) }}">Play</a>
+                    <a href="{{ url_for('main.video_note', video_id=note.video_id, note_id=note.key().id_or_name()) }}">Play</a>
                 </div>
             </div>
         </div>
