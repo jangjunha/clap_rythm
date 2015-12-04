@@ -19,11 +19,14 @@
     <div class="fb-like" data-href="{{ request.url }}" data-layout="standard" data-action="like" data-show-faces="true" data-share="true"></div>
     <hr>
     <p id="msg" style="font-size: 4.5em; margin: 0" class="center-align">Play Video to Start</p>
-    <p id="score" style="font-size: 2.5em; margin:0" class="center-align">Score: 0</p>
+    <div style="height: 4em">
+      <p id="score" style="color:black; font-size: 2.5em; margin:0; padding: 0" class="center-align">0</p>
+    </div>
   </div>
 </div>
 
 <canvas id="mainCanvas" width="480" height="80" style="margin: 0; padding: 0; border: 1px solid #9e9e9e"></canvas>
+<canvas id="volumeCanvas" width="480" height="20" style="margin: 0; padding: 0; border: 1px solid #9e9e9e"></canvas>
 
 
 <!-- Result  Modal Structure -->
@@ -78,6 +81,8 @@
 
   var mainCanvas;
   var mainCtx;
+  var volumeCanvas;
+  var volumeCtx;
 
   var item = {
     {% if random %}
@@ -203,9 +208,26 @@
     timerId = setInterval('process()', 50);
   }
 
+  var scoreObj = $("#score");
+  var isScoreAnimFinish = true;
   function updateScore(newScore)
   {
-    $("#score").text("Score: " + score);
+    scoreObj.text("" + score);
+    //if(isScoreAnimFinish)
+    {
+      isScoreAnimFinish = false;
+      scoreObj.stop().animate({
+        "font-size": "3.5em",
+        color: "#f00"
+      }, 70, function(){
+        scoreObj.stop().animate({
+          "font-size": "2.5em",
+          color: "#000"
+        }, 400, function(){
+          isScoreAnimFinish = true;
+        });
+      });
+    }
   }
 
   $(document).ready(function() {
@@ -213,6 +235,10 @@
 
     mainCanvas = document.getElementById('mainCanvas');
     mainCtx = $("#mainCanvas").get()[0].getContext("2d");
+
+    volumeCanvas = document.getElementById('volumeCanvas');
+    volumeCtx = $("#volumeCanvas").get()[0].getContext("2d");
+
     clearCanvas();
     // 일단 첫 화면을 그린다!
     draw();
@@ -293,9 +319,10 @@
   var COOL_RANGE = 70,
       GREAT_RANGE = 140,
       GOOD_RANGE = 200;
-  var CLAP_RANGE = 30000;
+  var CLAP_RANGE = 55000;
   var clap = false;
   var lastClapTime, lastDrawTime = Date.now();
+  var clap_anim = [];
 
   // Draw the Spectrogram from the frequency array
   // adapted from http://www.smartjava.org/content/exploring-html5-web-audio-visualizing-sound
@@ -337,18 +364,37 @@
     mainCtx.rect(- COOL_RANGE * scale + adjust, 0, COOL_RANGE * 2 * scale, height);
     mainCtx.fill();
 
-    if(clapDelta < 1000 && clapDelta > 0)
-    {
-      mainCtx.beginPath();
-      mainCtx.fillStyle = "#2196F3"
-      if(clapDelta < 500)
-        mainCtx.globalAlpha = 0.5;
-      else
-        mainCtx.globalAlpha = 0.5 - (clapDelta - 500) / 1000;
-      mainCtx.rect(0, 0, adjust + GOOD_RANGE * scale, height);
-      mainCtx.fill();
-      mainCtx.globalAlpha = 1;
+    // CLAP ANIM
+    var clap_anim_new = [];
+    for (var i in clap_anim) {
+      var o = clap_anim[i];
+      if (o.t + 700 >= tm) {
+        var radius = (tm - o.t) / 700 * height * 2;
+        var alpha = (1 - (tm - o.t) / 700) * 0.6;
+
+        mainCtx.beginPath();
+        mainCtx.arc(adjust, height / 2, radius, 0, 2 * Math.PI);
+        mainCtx.fillStyle = "#2196F3";
+        mainCtx.globalAlpha = alpha;
+        mainCtx.fill();
+        mainCtx.globalAlpha = 1;
+
+        clap_anim_new.push(o);
+      }
     }
+    clap_anim = clap_anim_new;
+    // if(clapDelta < 1000 && clapDelta > 0)
+    // {
+    //   mainCtx.beginPath();
+    //   mainCtx.fillStyle = "#2196F3"
+    //   if(clapDelta < 500)
+    //     mainCtx.globalAlpha = 0.5;
+    //   else
+    //     mainCtx.globalAlpha = 0.5 - (clapDelta - 500) / 1000;
+    //   mainCtx.rect(0, 0, adjust + GOOD_RANGE * scale, height);
+    //   mainCtx.fill();
+    //   mainCtx.globalAlpha = 1;
+    // }
 
     mainCtx.fillStyle="#000000"
     for (i in item.notes) {
@@ -373,6 +419,9 @@
   var clap_cnt = 0;
   var combo = 0, score = 0;
   var last_sum = 0;
+
+  var volume_history = [];
+
   function process() {
     // console.log('process()');
     var sum = 0;
@@ -385,14 +434,55 @@
 
     tm = Date.now() - start_time - pausedTimes;
 
+    var volume_history_new = [];
+    var volume_recent_sum = 0, volume_recent_cnt = 0;
+    for (var i in volume_history) {
+      var o = volume_history[i];
+      if (tm - o.t <= 150) {
+        volume_recent_sum += o.v;
+        volume_recent_cnt++;
+        volume_history_new.push(o);
+      }
+    }
+    volume_history_new.push({'t': tm, 'v': sum});
+    volume_history = volume_history_new;
+
+    var volume_aver = volume_recent_sum / volume_recent_cnt;
+    
+    var volume_width = $('#volumeCanvas').parent().width();
+
+    volumeCtx.clearRect(0, 0, volume_width, 20);
+
+    volumeCtx.beginPath();
+    volumeCtx.rect(volume_width * CLAP_RANGE / 70000, 0, 2, 20);
+    volumeCtx.fillStyle = "#000000";
+    volumeCtx.fill();
+
+    volumeCtx.beginPath();
+    volumeCtx.rect(0, 0, volume_width * (sum / 70000), 20);
+    volumeCtx.fillStyle = "#FF0000";
+    volumeCtx.globalAlpha = 0.5;
+    volumeCtx.fill();
+
+    // volumeCtx.beginPath();
+    // volumeCtx.rect(0, 0, volume_width * (volume_aver / 70000), 20);
+    // volumeCtx.fillStyle = "#22AAAA";
+    // volumeCtx.fill();
+    
+    volumeCtx.globalAlpha = 1;
+
+
     // $('#log').html(sum)
     clap = false;
-    if (sum > CLAP_RANGE)
+    if (sum > CLAP_RANGE && sum > volume_aver + 5000)
     {
       clap = true;
       lastClapTime = Date.now();
       clap_cnt = clap_cnt + 1;
       console.log('CLAP' + clap_cnt);
+
+      clap_anim.push({'t': tm});
+      volume_history.push({'t': tm, 'v': sum + 30000});   // 100ms 안에 못치게
     }
     last_sum = sum;
 
@@ -402,6 +492,7 @@
     else if(combo > 50) weight = 1.5;
     else if(combo > 100) weight = 2;
 
+    var oldScore = score;
     for (i in item.notes) {
         if (item.notes[i].c == undefined || item.notes[i].c == false) {
             sub = item.notes[i].t - tm;
@@ -441,9 +532,8 @@
 
         }
     }
-
-
-    updateScore(score);
+    if(score > oldScore)
+      updateScore(score);
     if (msg != "") {
         $('#msg').html(msg)
     }
@@ -456,7 +546,9 @@
   }
 
   function resizeCanvas() {
-    $('#mainCanvas').attr('width', $('#mainCanvas').parent().width());
+    var new_width = $('#mainCanvas').parent().width();
+    $('#mainCanvas').attr('width', new_width);
+    $('#volumeCanvas').attr('width', new_width);
   }
 
   $( window ).resize(function() {
