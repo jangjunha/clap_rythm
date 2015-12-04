@@ -14,9 +14,9 @@ def home():
     return render_template('index.html', notes=notes)
 
 
-@blue_main.route('/test')
-def test():
-    return render_template('test.html')
+# @blue_main.route('/test')
+# def test():
+#     return render_template('create_tmp.html')
 
 
 @blue_main.route('/close_popup')

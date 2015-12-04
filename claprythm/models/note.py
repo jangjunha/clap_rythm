@@ -5,6 +5,7 @@ from claprythm.models.user import User
 
 class Note(db.Model):
     video_id = db.StringProperty()
+    video_title = db.StringProperty()
     notes = db.TextProperty()
     title = db.StringProperty()
 
@@ -12,4 +13,4 @@ class Note(db.Model):
     writer_name = db.StringProperty()       # Not registered
     ip = db.StringProperty()
 
-    datetime = db.DateTimeProperty()
+    datetime = db.DateTimeProperty(auto_now_add=True)

@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#write').click(function() {
+                var video_id = $('#video_id').val();
+                var title = $('#title').val();
+                var video_title = $('#video_title').val();
+                var notes = $('#notes').val();
+                var nickname = $('#nickname').val();
+
+                $.ajax({
+                    type: "POST",
+                    url: "/yt/" + video_id + '/create',
+                    data: {
+                        'title': title,
+                        'video_title': video_title,
+                        'notes': notes,
+                        'nickname': nickname
+                    },
+                    success: function(args) {
+                        alert('success');
+                    }
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <p>Video ID</p>
+    <input type="text" id="video_id">
+    <br>
+    <p>Video Title</p>
+    <input type="text" id="video_title">
+    <br>
+    <p>Title</p>
+    <input type="text" id="title">
+    <br>
+    <p>Notes</p>
+    <input type="text" id="notes">
+    <br>
+    <p>Writer</p>
+    <input type="text" id="nickname">
+
+    <butto id="write">Write</button>
+</body>
+</html>
