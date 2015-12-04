@@ -82,23 +82,41 @@ def video_note(video_id, note_id):
                            args=request.args)
 
 
-@blue_main.route('/yt/<string:video_id>/play/random')
+@blue_main.route('/yt/<string:video_id>/play/random', methods=['POST', 'GET'])
 def video_play_random(video_id):
+    clap_range = request.form.get('range-result', 50000)
+    if clap_range == '' or int(clap_range) == 0:
+        clap_range = 50000
+    elif clap_range < 20000:
+        clap_range = 20000
+    else:
+        clap_range = int(clap_range)
+
     note = {'video_id': video_id,
             'title': 'Random',
             'writer_name': 'Your Computer'}
 
     return render_template('play.html',
                            note=note,
+                           clap_range=clap_range,
                            random=True)
 
 
-@blue_main.route('/yt/<string:video_id>/play/<int:note_id>')
+@blue_main.route('/yt/<string:video_id>/play/<int:note_id>',
+                 methods=['POST', 'GET'])
 def video_play(video_id, note_id):
     note = Note.get_by_id(note_id)
 
     if note.video_id != video_id:
         return abort(400)
+
+    clap_range = request.form.get('range-result', 50000)
+    if clap_range == '' or int(clap_range) == 0:
+        clap_range = 50000
+    elif clap_range < 20000:
+        clap_range = 20000
+    else:
+        clap_range = int(clap_range)
 
     notes_o = []
     for t in json.loads(note.notes):
@@ -106,12 +124,12 @@ def video_play(video_id, note_id):
 
     return render_template('play.html',
                            note=note,
+                           clap_range=clap_range,
                            random=False,
                            notes_str=json.dumps(notes_o))
 
+
 # Redirect
-
-
 @blue_main.route('/watch')
 def yt_watch():
     video_id = request.args.get('v', '')

@@ -319,7 +319,7 @@
   var COOL_RANGE = 70,
       GREAT_RANGE = 140,
       GOOD_RANGE = 200;
-  var CLAP_RANGE = 55000;
+  var CLAP_RANGE = {{ clap_range }};
   var clap = false;
   var lastClapTime, lastDrawTime = Date.now();
   var clap_anim = [];
@@ -454,12 +454,12 @@
     volumeCtx.clearRect(0, 0, volume_width, 20);
 
     volumeCtx.beginPath();
-    volumeCtx.rect(volume_width * CLAP_RANGE / 70000, 0, 2, 20);
+    volumeCtx.rect(volume_width * CLAP_RANGE / 90000, 0, 2, 20);
     volumeCtx.fillStyle = "#000000";
     volumeCtx.fill();
 
     volumeCtx.beginPath();
-    volumeCtx.rect(0, 0, volume_width * (sum / 70000), 20);
+    volumeCtx.rect(0, 0, volume_width * (sum / 90000), 20);
     volumeCtx.fillStyle = "#FF0000";
     volumeCtx.globalAlpha = 0.5;
     volumeCtx.fill();

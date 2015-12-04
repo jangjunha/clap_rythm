@@ -16,30 +16,182 @@
 <div class="row">
   <div class="col s12 m12 l6"><div id="player"></div></div>
   <div class="col s12 m12 l6">
-    {% if random %}
-    <a href="{{ url_for('main.video_play_random', video_id=note.video_id) }}" class="btn waves-effect waves-light">Play</a>
-    {% else %}
-    <a href="{{ url_for('main.video_play', video_id=note.video_id, note_id=note.key().id_or_name()) }}" class="btn waves-effect waves-light">Play</a>
-    {% endif %}
-      <form action="#" oninput="result.value = parseInt(test5.value)" action"play.html">
-        <p class="range-field">
-            
-          <input type="range" id="test5" min="0" max="200" value="100"/>
-            <h3 align="center"> 박수 인식 크기 조절 버튼</h3>
-          
-        </p>
-      
-        <output name="result"></output>
-    </div>
-</form>
-</form>
-    
+    <form id="form" action="{% if random %}{{ url_for('main.video_play_random', video_id=note.video_id) }}{% else %}{{ url_for('main.video_play', video_id=note.video_id, note_id=note.key().id_or_name()) }}{% endif %}" method="post">
+      <h5>Clap recognition control</h5>
+      <p class="range-field">
+        <input type="range" id="range-bar" min="0" max="200" value="100"/>
+      </p>
+      <input type="hidden" id="range-result" name="range-result">
+    </form>
+    <canvas id="volumeCanvas" width="480" height="20" style="margin: 0; padding: 0; border: 1px solid #9e9e9e"></canvas>
+
+    <input type="submit" class="btn waves-effect waves-light" value="Play" onclick="$('#form').submit()">
+  </div>
 </div>
 
 <!-- <a class="btn-floating btn-large waves-effect waves-light red"><i class="material-icons">add</i></a> -->
 {% endblock %}
 {% block lazy_script %}
 <script>
+  var CLAP_RANGE = 50000;
+
+  var volumeCanvas;
+  var volumeCtx;
+
+  window.requestAnimFrame = (function(){
+    return  window.requestAnimationFrame       ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame    ||
+            window.oRequestAnimationFrame      ||
+            window.msRequestAnimationFrame     ||
+            function(callback, element){
+              window.setTimeout(callback, 1000 / 60);
+            };
+  })();
+  // Global Variables for Audio
+  var audioContext;
+
+  var sourceNode;
+  var analyserNode;
+  var javascriptNode;
+  var playbackSourceNode;
+  var audioStream;
+  var array = [];
+
+  var recording = null;  // this is the cumulative buffer for your recording
+
+  var audioBufferNode = null;
+  var audioBuffer = null;
+
+  // Global Variables for Drawing
+  var x = 0;
+
+  window.craicAudioContext = (function(){
+    return  window.AudioContext || window.AudioContext ;
+  })();
+
+  navigator.getMedia = ( navigator.mozGetUserMedia ||
+    navigator.getUserMedia ||
+    navigator.webkitGetUserMedia ||
+    navigator.msGetUserMedia);
+
+  function onError(e) {
+    console.log(e);
+  }
+
+  // Add this buffer to the recording
+  // recording is a global
+  function addSampleToRecording(inputBuffer) {
+    var currentBuffer = inputBuffer.getChannelData(0);
+
+    if (recording ==  null) {
+      // handle the first buffer
+      recording = currentBuffer;
+    } else {
+      // allocate a new Float32Array with the updated length
+      newlen = recording.length + currentBuffer.length;
+      var newBuffer = new Float32Array(newlen);
+      newBuffer.set(recording, 0);
+      newBuffer.set(currentBuffer, recording.length);
+      recording = newBuffer;
+    }
+  }
+
+  function setupAudioNodes(stream) {
+    var sampleSize = 1024;  // number of samples to collect before analyzing FFT
+      // decreasing this gives a faster sonogram, increasing it slows it down
+    audioStream = stream;
+
+    // The nodes are:  sourceNode -> analyserNode -> javascriptNode -> destination
+
+    // create an audio buffer source node
+    sourceNode = audioContext.createMediaStreamSource(audioStream);
+
+    // Set up the javascript node - this uses only one channel - i.e. a mono microphone
+    //javascriptNode = audioContext.createJavaScriptNode(sampleSize, 1, 1);
+    javascriptNode = audioContext.createScriptProcessor(sampleSize, 1, 1);
+
+    // setup the analyser node
+    analyserNode = audioContext.createAnalyser();
+    analyserNode.smoothingTimeConstant = 0.0;
+    analyserNode.fftSize = 1024; // must be power of two
+
+    // connect the nodes together
+    sourceNode.connect(analyserNode);
+    analyserNode.connect(javascriptNode);
+    javascriptNode.connect(audioContext.destination);
+
+    // optional - connect input to audio output (speaker)
+    // This will echo your input back to your speakers - Beware of Feedback !!
+    // sourceNode.connect(audioContext.destination);
+
+    // allocate the array for Frequency Data
+    array = new Uint8Array(analyserNode.frequencyBinCount);
+  }
+
+  // Check that the browser can handle web audio
+  try {
+    // audioContext = new webkitAudioContext();
+    audioContext = new craicAudioContext();
+  }
+  catch(e) {
+    alert('Web Audio API is not supported in this browser');
+  }
+
+  // get the input audio stream and set up the nodes
+  try {
+    // calls the function setupAudioNodes
+    //            navigator.webkitGetUserMedia({audio:true}, setupAudioNodes, onError);
+    navigator.getMedia({audio:true}, setupAudioNodes, onError);
+  } catch (e) {
+    alert('webkitGetUserMedia threw exception :' + e);
+  }
+
+
+  $(document).ready(function() {
+    resizeCanvas();
+
+    volumeCanvas = document.getElementById('volumeCanvas');
+    volumeCtx = $("#volumeCanvas").get()[0].getContext("2d");
+
+    $('#range-bar').change(function() {
+      CLAP_RANGE = 20000 + ($(this).val() / 200) * 60000;
+      $('#range-result').val(CLAP_RANGE);
+      draw();
+    });
+
+    // 일단 첫 화면을 그린다!
+    draw();
+  });
+
+  function draw() {
+    width = volumeCanvas.width;
+    height = volumeCanvas.height;
+    
+    var sum = 0;
+    if(array){
+      for (var i = 0; i < array.length; i += 1) {
+        var value = array[i];
+        sum += value;
+      }
+    }
+
+    volumeCtx.clearRect(0, 0, width, 20);
+
+    volumeCtx.beginPath();
+    volumeCtx.rect(width * CLAP_RANGE / 90000, 0, 2, 20);
+    volumeCtx.fillStyle = "#000000";
+    volumeCtx.fill();
+
+    volumeCtx.beginPath();
+    volumeCtx.rect(0, 0, width * (sum / 90000), 20);
+    volumeCtx.fillStyle = "#FF0000";
+    volumeCtx.globalAlpha = 0.5;
+    volumeCtx.fill();
+    
+    volumeCtx.globalAlpha = 1;
+  }
+
   // 2. This code loads the IFrame Player API code asynchronously.
   var tag = document.createElement('script');
 
@@ -72,22 +224,54 @@
   //    the player should play for six seconds and then stop.
   var done = false;
   function onPlayerStateChange(event) {
-      // if (event.data == YT.PlayerState.PLAYING && !done) {
-      //   setTimeout(stopVideo, 6000);
-      //   done = true;
-      // }
-      if (event.data == -1) {
-        var loaded_video_id = player.getVideoData().video_id;
-        if (loaded_video_id != "{{ note.video_id }}") {
-          location.href = "/yt/" + loaded_video_id;
-        }
-      }
-
-      if (event.data == YT.PlayerState.ENDED) {
-        player.clearVideo();
+    // if (event.data == YT.PlayerState.PLAYING && !done) {
+    //   setTimeout(stopVideo, 6000);
+    //   done = true;
+    // }
+    if (event.data == -1) {
+      var loaded_video_id = player.getVideoData().video_id;
+      if (loaded_video_id != "{{ note.video_id }}") {
+        location.href = "/yt/" + loaded_video_id;
       }
     }
+
+    if (event.data == YT.PlayerState.PLAYING) {
+      if (!done) {
+        // 시작
+        console.log('Play Start!');
+        // setTimeout(stopVideo, 6000);
+        done = true;
+
+        if(javascriptNode.onaudioprocess) {
+          // ...
+        }
+        else {
+          /// alert("audio input has not been connected");
+        }
+        // execute every time a new sample has been acquired
+        javascriptNode.onaudioprocess = function (e) {
+          addSampleToRecording(e.inputBuffer);
+
+          // Analyze the frequencies in this sample and add to the spectorgram
+          analyserNode.getByteFrequencyData(array);
+          requestAnimFrame(draw);
+        }
+      }
+    }
+
+    if (event.data == YT.PlayerState.ENDED) {
+      player.clearVideo();
+    }
+  }
     
+  function resizeCanvas() {
+    var new_width = $('#volumeCanvas').parent().width();
+    $('#volumeCanvas').attr('width', new_width);
+  }
+
+  $( window ).resize(function() {
+    resizeCanvas();
+  });
 
     </script>
 
