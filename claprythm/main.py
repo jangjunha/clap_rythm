@@ -10,13 +10,13 @@ blue_main = Blueprint('main', __name__, url_prefix='')
 
 @blue_main.route('/')
 def home():
-    notes = [note for note in Note.all().order('-datetime').run(limit=6)]
+    notes = [note for note in Note.all().order('-datetime').run(limit=16)]
     return render_template('index.html', notes=notes)
 
 
-# @blue_main.route('/test')
-# def test():
-#     return render_template('create_tmp.html')
+@blue_main.route('/test')
+def test():
+    return render_template('create_tmp.html')
 
 
 @blue_main.route('/close_popup')

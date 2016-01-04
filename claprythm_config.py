@@ -3,4 +3,5 @@
 DEBUG = False
 SECRET_KEY = 'development-key'
 
-# SERVER_NAME = 'clap.heek.kr'
+SERVER_NAME = 'clap.heek.kr'
+PREFERRED_URL_SCHEME = 'https'
