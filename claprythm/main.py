@@ -2,7 +2,6 @@
 from flask import Blueprint, render_template, request, redirect, flash, \
     url_for, abort
 from claprythm.models.note import Note
-from acme import ACME
 import json
 
 
@@ -13,16 +12,6 @@ blue_main = Blueprint('main', __name__, url_prefix='')
 def home():
     notes = [note for note in Note.all().order('-datetime').run(limit=16)]
     return render_template('index.html', notes=notes)
-
-
-# For domain validation.
-@blue_main.route('/.well-known/acme-challenge/<string:acme_key>')
-def acme_challenge(acme_key):
-        for domain in ACME:
-                if request.url.startswith(domain):
-                        if acme_key == ACME[domain][0]:
-                                return ACME[domain][1]
-	return abort(404)
 
 
 @blue_main.route('/test')
